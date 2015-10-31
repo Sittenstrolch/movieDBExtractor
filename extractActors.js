@@ -27,8 +27,13 @@ function catchActors(id){
                 if(err == "skip"){
                     currentId += 1
                     getForId(currentId)
-                }else
+                }else if (err == "wait"){
+                	setTimeout(function() {
+                    	getForId(currentId)
+					}, 5000);
+                }else{            
                     console.log(err)
+                }
             })
     }
 
@@ -109,7 +114,12 @@ function getDataForActor(id){
                 deferred.reject("skip")
                 return;
             }else if(result[0].status_code) {
-                console.log(result[0])
+                if(result[0].status_code == 25){
+                	deferred.reject("wait")
+                	return
+                }else{
+                	console.log(result[0])
+                }
             }
             //Got data for Actor
             var dbPromises = []

@@ -2,7 +2,7 @@ var db = require('./database.js'),
     q  = require('q'),
     request = require('request')
 
-var startId = 857,
+var startId = 51850,
     api_key = "da7e24d8289e92514bc64236c97d2874",
     max_id = "1529791"
 
@@ -57,7 +57,8 @@ function getActorById(id){
     }
 
     request(parameters, function (error, response, body) {
-        if(body.status && (body.status != 200 || body.status == 403)){
+        if(body){
+	if(body.status && (body.status != 200 || body.status == 403)){
             deferred.reject({
                 id: id,
                 error: "Person API call " + body.message
@@ -66,7 +67,9 @@ function getActorById(id){
         }
 
         deferred.resolve(body)
-
+	}else {
+		deferred.reject()
+	}
     })
 
     return deferred.promise
@@ -86,15 +89,19 @@ function getActorsCredits(id){
     }
 
     request(parameters, function (error, response, body) {
-        if(body.status && (body.status != 200 || body.status == 403)){
+        if(body){
+	if(body.status && (body.status != 200 || body.status == 403)){
             deferred.reject({
                 id: id,
                 error: "Credit API call " + body.message
             })
             return
-        }
+        }	
 
-        deferred.resolve(body)
+        	deferred.resolve(body)
+	}else{
+		deferred.reject()
+	}
 
     })
 

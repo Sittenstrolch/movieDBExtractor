@@ -12,7 +12,6 @@ db.serialize(function() {
     }
 });
 
-
 function setUpDatabase(){
     db.run("CREATE TABLE Actor (id INTEGER PRIMARY KEY, adult INTEGER, biography TEXT, birthday TEXT, deathday TEXT, homepage TEXT, imdb_id TEXT, name TEXT, place_of_birth TEXT, popularity REAL, profile_path TEXT);");
     //db.run("CREATE TABLE Movie (id INTEGER PRIMARY KEY)");
@@ -23,6 +22,100 @@ function setUpDatabase(){
     db.run("CREATE TABLE CrewInMovie (actorId INTEGER, movieId INTEGER, job TEXT);");
     //db.run("CREATE TABLE PlaysInMovie (FOREIGN KEY(actorId) REFERENCES Actor(id), FOREIGN KEY(movieId) REFERENCES Movie(id))");
     //db.run("CREATE TABLE PlaysInTvShow (FOREIGN KEY(actorId) REFERENCES Actor(id), FOREIGN KEY(tvShowId) REFERENCES TvShow(id))");
+}
+
+function updateToNewShema(){
+    db.run("CREATE TABLE Movie (id INTEGER PRIMARY KEY, adult INTEGER, budget INTEGER, homepage TEXT, imdb_id TEXT, original_title TEXT, original_language TEXT, overview TEXT, popularity REAL, production_countries TEXT, release_date TEXT, revenue INTEGER, runtime INTEGER, spoken_languages TEXT, status TEXT, tagline TEXT, title TEXT, video INTEGER, vote_average REAL, vote_count INTEGER);");
+    db.run("CREATE TABLE TvShow (id INTEGER PRIMARY KEY, first_air_date TEXT, homepage TEXT, in_production INTEGER, languages TEXT, last_air_date TEXT, name TEXT, networks TEXT, number_of_episodes INTEGER, number_of_seasons INTEGER, origin_country TEXT, original_language TEXT, original_name TEXT, overview TEXT, popularity REAL, status TEXT, type TEXT, vote_average REAL, vote_count INTEGER );");
+    db.run("CREATE TABLE MovieToGenre (movieId INTEGER, genreId INTEGER);");
+    db.run("CREATE TABLE TvShowToGenre (tvShowId INTEGER, genreId INTEGER);");
+    db.run("CREATE TABLE MovieToProductionCompany (movieId INTEGER, productionCompanyId INTEGER);");
+    db.run("CREATE TABLE Genre (genreId INTEGER, label TEXT);")
+    db.run("CREATE TABLE ProductionCompany (productionCompanyId INTEGER, name TEXT);")
+}
+
+exports.addMovie = function(movie){
+    var deferred = q.defer()
+
+    db.serialize(function() {
+
+        var stmt = db.prepare("INSERT INTO Movie (id , adult, budget, homepage, imdb_id, original_title, original_language, overview, popularity, production_countries, release_date, revenue, runtime, spoken_languages, status, tagline, title, video, vote_average, vote_count)  VALUES  (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+
+        if(movie.adult)
+            movie.adult = 1
+        else
+            movie.adult = 0
+
+        if(movie.video)
+            movie.video = 1
+        else
+            movie.video = 0
+
+        var prodCountries = ""
+        for(var i=0; i<movie.production_countries.length ; i++){
+            if(i>0)
+                prodCountries += ","
+
+            prodCountries += movie.production_countries[i]["iso_3166_1"]
+        }
+
+        movie.production_countries = prodCountries
+
+        var spokenLangs = ""
+        for(var i=0; i<movie.spoken_languages.length ; i++){
+            if(i>0)
+                spokenLangs += ","
+
+            spokenLangs += movie.spoken_languages[i]["iso_639_1"]
+        }
+        movie.spoken_languages = spokenLangs
+
+        stmt.run(movie.id, movie.adult, movie.budget, movie.homepage, movie.imdb_id, movie.original_title, movie.original_language, movie.overview, movie.popularity, movie.production_countries, movie.release_date, movie.revenue, movie.runtime, movie.spoken_languages, movie.status, movie.tagline, movie.title, movie.video, movie.vote_average, movie.vote_count)
+
+        deferred.resolve()
+    });
+
+    return deferred.promise
+
+}
+
+exports.addTvShow = function(tvShow){
+    var deferred = q.defer()
+
+    db.serialize(function() {
+
+        var stmt = db.prepare("INSERT INTO Movie (id, first_air_date, homepage, in_production, languages, last_air_date, name, networks, number_of_episodes, number_of_seasons, origin_country, original_language, original_name, overview, popularity, status, type, vote_average, vote_count)  VALUES  (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+
+        if(tvShow.in_production)
+            tvShow.in_production = 1
+        else
+            tvShow.in_production = 0
+
+        var tvNetworks = ""
+        for(var i=0; i<tvShow.networks.length ; i++){
+            if(i>0)
+                tvNetworks += ","
+
+            tvNetworks += tvShow.networks[i].name
+        }
+
+        tvShow.networks = tvNetworks
+
+        var spokenLangs = ""
+        for(var i=0; i<tvShow.languages.length ; i++){
+            if(i>0)
+                spokenLangs += ","
+
+            spokenLangs += tvShow.languages[i]["iso_639_1"]
+        }
+        tvShow.languages = spokenLangs
+
+        stmt.run(tvShow.id, tvShow.first_air_date, tvShow.homepage, tvShow.in_production, tvShow.languages, tvShow.last_air_date, tvShow.name, tvShow.networks, tvShow.number_of_episodes, tvShow.number_of_seasons, tvShow.origin_country, tvShow.original_language, tvShow.original_name, tvShow.overview, tvShow.popularity, tvShow.status, tvShow.type, tvShow.vote_average, tvShow.vote_count)
+
+        deferred.resolve()
+    });
+
+    return deferred.promise
 
 }
 
@@ -107,83 +200,77 @@ exports.addTvShowCrew = function(actorId, tvShowId, job){
     return deferred.promise
 }
 
-exports.updateEntry = function(entry){
+exports.addGenre = function(genreId, label){
     var deferred = q.defer()
 
     db.serialize(function() {
 
-        var stmt = db.prepare("UPDATE Entry SET headline=?, subheadline=?, content=?, images=?, custom=?, customHtml=?, date=? WHERE type=? AND date=? ")
+        var stmt = db.prepare("INSERT INTO Genre (genreId, label) VALUES  (?,?)")
 
-        stmt.run(entry.headline, entry.subheadline, entry.content, entry.images, entry.custom, entry.customHtml, entry.date, entry.type, entry.oldDate)
+        stmt.run(genreId, label)
 
         deferred.resolve()
     });
 
     return deferred.promise
-
 }
 
-exports.deleteEntry = function(entry){
+exports.addProductionCompany = function(productionCompanyId, name){
     var deferred = q.defer()
 
     db.serialize(function() {
-        //var news = []
-        var stmt = db.prepare("DELETE FROM Entry WHERE type=? AND date=? ")
 
-        stmt.run(entry.type, entry.date)
+        var stmt = db.prepare("INSERT INTO ProductionCompany (productionCompanyId, name) VALUES  (?,?)")
+
+        stmt.run(productionCompanyId, name)
 
         deferred.resolve()
-
-
     });
 
     return deferred.promise
 }
 
-exports.getAllNews = function(){
+exports.addMovieToGenre = function(movieId, genreId){
     var deferred = q.defer()
 
     db.serialize(function() {
-        //var news = []
-        db.all("SELECT * FROM Entry Where type='news'", function(err, rows) {
 
-            deferred.resolve(rows)
+        var stmt = db.prepare("INSERT INTO MovieToGenre (movieId, genreId) VALUES  (?,?)")
 
-        });
+        stmt.run(movieId, genreId)
 
-
+        deferred.resolve()
     });
 
     return deferred.promise
 }
 
-exports.getAllEvents = function(){
+exports.addTvShowToGenre = function(tvShowId, genreId){
     var deferred = q.defer()
 
     db.serialize(function() {
-        //var news = []
-        db.all("SELECT * FROM Entry Where type='event'", function(err, rows) {
 
-            deferred.resolve(rows)
+        var stmt = db.prepare("INSERT INTO TvShowToGenre (tvShowId, genreId) VALUES  (?,?)")
 
-        });
+        stmt.run(tvShowId, genreId)
 
-
+        deferred.resolve()
     });
 
     return deferred.promise
 }
 
-exports.addEvent = function(event){
+exports.addMovieToProductionCompany = function(movieId, productionCompanyId){
+    var deferred = q.defer()
 
     db.serialize(function() {
 
-        db.run("INSERT INTO Entry (place, title, date) VALUES  (" +
-        "'" + event.place + "'," +
-        "'" + event.title + "'," +
-        "" + event.date + "" +
-        ")")
+        var stmt = db.prepare("INSERT INTO MovieToProductionCompany (movieId, productionCompanyId) VALUES  (?,?)")
 
+        stmt.run(movieId, productionCompanyId)
+
+        deferred.resolve()
     });
 
+    return deferred.promise
 }

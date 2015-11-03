@@ -84,7 +84,7 @@ exports.addTvShow = function(tvShow){
 
     db.serialize(function() {
 
-        var stmt = db.prepare("INSERT INTO Movie (id, first_air_date, homepage, in_production, languages, last_air_date, name, networks, number_of_episodes, number_of_seasons, origin_country, original_language, original_name, overview, popularity, status, type, vote_average, vote_count)  VALUES  (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+        var stmt = db.prepare("INSERT INTO TvShow (id, first_air_date, homepage, in_production, languages, last_air_date, name, networks, number_of_episodes, number_of_seasons, origin_country, original_language, original_name, overview, popularity, status, type, vote_average, vote_count)  VALUES  (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
 
         if(tvShow.in_production)
             tvShow.in_production = 1
@@ -106,9 +106,18 @@ exports.addTvShow = function(tvShow){
             if(i>0)
                 spokenLangs += ","
 
-            spokenLangs += tvShow.languages[i]["iso_639_1"]
+            spokenLangs += tvShow.languages[i]
         }
         tvShow.languages = spokenLangs
+
+        var originCountries = ""
+        for(var i=0; i<tvShow.origin_country.length ; i++){
+            if(i>0)
+                originCountries += ","
+
+            originCountries += tvShow.origin_country[i]
+        }
+        tvShow.origin_country = originCountries
 
         stmt.run(tvShow.id, tvShow.first_air_date, tvShow.homepage, tvShow.in_production, tvShow.languages, tvShow.last_air_date, tvShow.name, tvShow.networks, tvShow.number_of_episodes, tvShow.number_of_seasons, tvShow.origin_country, tvShow.original_language, tvShow.original_name, tvShow.overview, tvShow.popularity, tvShow.status, tvShow.type, tvShow.vote_average, tvShow.vote_count)
 
@@ -203,14 +212,22 @@ exports.addTvShowCrew = function(actorId, tvShowId, job){
 exports.addGenre = function(genreId, label){
     var deferred = q.defer()
 
-    db.serialize(function() {
 
-        var stmt = db.prepare("INSERT INTO Genre (genreId, label) VALUES  (?,?)")
+        db.serialize(function() {
 
-        stmt.run(genreId, label)
+            var stmt = db.prepare("INSERT INTO Genre (genreId, label) VALUES  (?,?)")
 
-        deferred.resolve()
-    });
+            stmt.run(genreId, label, function(err, row){
+                if(err && err.errno != 19) {
+                    console.log(err)
+                    process.exit()
+                }
+
+            })
+            deferred.resolve()
+        });
+
+
 
     return deferred.promise
 }
@@ -218,14 +235,25 @@ exports.addGenre = function(genreId, label){
 exports.addProductionCompany = function(productionCompanyId, name){
     var deferred = q.defer()
 
-    db.serialize(function() {
+    try{
+        db.serialize(function() {
 
-        var stmt = db.prepare("INSERT INTO ProductionCompany (productionCompanyId, name) VALUES  (?,?)")
+            var stmt = db.prepare("INSERT INTO ProductionCompany (productionCompanyId, name) VALUES  (?,?)")
 
-        stmt.run(productionCompanyId, name)
+            stmt.run(productionCompanyId, name, function(err, row){
+                if(err && err.errno != 19) {
+                    console.log(err)
+                    process.exit()
+                }
+            })
 
+            deferred.resolve()
+        });
+    }catch(err){
+        console.log(err)
         deferred.resolve()
-    });
+    }
+
 
     return deferred.promise
 }
@@ -274,3 +302,42 @@ exports.addMovieToProductionCompany = function(movieId, productionCompanyId){
 
     return deferred.promise
 }
+
+exports.getUncrawledMovies = function(){
+    var deferred = q.defer()
+
+    db.serialize(function() {
+        //var news = []
+        db.all("SELECT movieId FROM (SELECT movieId  FROM PlaysInMovie UNION SELECT movieId FROM CrewInMovie) as allMovies WHERE NOT EXISTS (SELECT id as movieId FROM Movie WHERE allMovies.movieId=Movie.id);", function(err, rows) {
+
+            deferred.resolve(rows)
+
+        });
+
+
+    });
+
+    return deferred.promise
+}
+
+exports.getUncrawledTvShows = function(){
+    var deferred = q.defer()
+
+    db.serialize(function() {
+        //var news = []
+        db.all("SELECT DISTINCT tvShowId FROM (SELECT tvShowId  FROM PlaysInTvShow UNION SELECT tvShowId FROM CrewInTvShow) as allTvShows WHERE NOT EXISTS (SELECT id as tvShowId FROM TvShow Where allTvShows.tvShowId=TvShow.id);", function(err, rows) {
+
+            deferred.resolve(rows)
+
+        });
+
+
+    });
+
+    return deferred.promise
+}
+//
+//exports.getUncrawledMovies()
+//    .then(function(rows){
+//        console.log(rows.length)
+//    })
